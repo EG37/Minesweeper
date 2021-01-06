@@ -39,24 +39,47 @@ class Button:
             screen.blit(text, (text_x, text_y))
 
 
+class Menu:
+    def __init__(self, title, *buttons):
+        self.buttons = buttons
+        self.title = title
+        self.active = False
+
+    def run(self):
+        pygame.display.set_caption(self.title)
+        self.active = True
+        screen.fill((240, 240, 240))
+        for button in self.buttons:
+            button.draw()
+
+    def get_event(self, type, pos):
+        if self.active:
+            for button in self.buttons:
+                button.get_event(type, pos)
+
+    def stop(self):
+        self.active = False
+
+
 SIZE = WIDTH, HEIGHT = GetSystemMetrics(0), GetSystemMetrics(1)
 clock = pygame.time.Clock()
 pygame.init()
 screen = pygame.display.set_mode(SIZE)
 FONT = pygame.font.Font('pixel_font.otf', 22)
 test_button = Button(10, 10, 100, 100, 'test', on_click=lambda x: print('test'))
+main_menu = Menu('Сапёр', test_button)
+current = main_menu
 
 
 if __name__ == '__main__':
     running = True
     clock = pygame.time.Clock()
     while running:
-        screen.fill((240, 240, 240))
-        test_button.draw()
+        current.run()
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 running = False
             else:
-                test_button.get_event(event.type, pygame.mouse.get_pos())
+                current.get_event(event.type, pygame.mouse.get_pos())
         pygame.display.flip()
     pygame.quit()
