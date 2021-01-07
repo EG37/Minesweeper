@@ -1,5 +1,45 @@
 from win32api import GetSystemMetrics
 import pygame
+import os
+import sys
+
+
+def load_image(name, colorkey=None):
+    fullname = os.path.join('data', name)
+    if not os.path.isfile(fullname):
+        print(f"Файл с изображением '{fullname}' не найден")
+        sys.exit()
+    image = pygame.image.load(fullname)
+    if colorkey is not None:
+        image = image.convert()
+        if colorkey == -1:
+            colorkey = image.get_at((0, 0))
+        image.set_colorkey(colorkey)
+    else:
+        image = image.convert_alpha()
+    return image
+
+
+class Label:
+    def __init__(self, x, y, width, height, text='', image=''):
+        self.rect = pygame.rect.Rect(x, y, width, height)
+        self.text = text
+        if image:
+            self.image = pygame.transform.scale(load_image(image), (width, height))
+        else:
+            self.image = None
+
+    def draw(self):
+        if self.image:
+            screen.blit(self.image, (self.rect.x, self.rect.y))
+        if self.text:
+            text = FONT.render(self.text, True, (0, 0, 0))
+            text_x = self.rect.x + self.rect.width // 2 - text.get_width() // 2
+            text_y = self.rect.y + self.rect.height // 2 - text.get_height() // 2
+            screen.blit(text, (text_x, text_y))
+
+    def get_event(self, type, pos):
+        pass
 
 
 class Button:
@@ -115,7 +155,8 @@ screen = pygame.display.set_mode(SIZE)
 FONT = pygame.font.Font('pixel_font.otf', 22)
 test_button = Button(10, 10, 100, 100, 'test', on_click=lambda x: print('test'))
 test_checkbox = Checkbox(10, 120, 100, 100, text='ТестТестТест')
-main_menu = Menu('Сапёр', test_button, test_checkbox)
+test_label = Label(0, 0, 100, 100, text='test', image='title.png')
+main_menu = Menu('Сапёр', test_button, test_checkbox, test_label)
 current = main_menu
 
 
