@@ -356,6 +356,18 @@ class Board:
         pass
 
 
+def change_difficulty(sender):
+    levels = {
+        0: 'Новичок: 8 x 8',
+        1: 'Любитель: 16 х 16',
+        2: 'Профессионал: 30 х 16',
+    }
+    SETTINGS['difficulty'] += 1
+    if SETTINGS['difficulty'] >= 3:
+        SETTINGS['difficulty'] = 0
+    sender.text = levels[SETTINGS['difficulty']]
+
+
 SIZE = WIDTH, HEIGHT = GetSystemMetrics(0), GetSystemMetrics(1)
 clock = pygame.time.Clock()
 pygame.init()
@@ -364,7 +376,20 @@ FONT = pygame.font.Font('pixel_font.otf', 40)
 test_button = Button(10, 10, 100, 100, 'test', on_click=lambda x: print('test'))
 test_checkbox = Checkbox(10, 120, 100, 100, text='ТестТестТест')
 test_label = Label(0, 0, 100, 100, text='test', image='title.png')
-main_menu = Menu('Сапёр', test_button, test_checkbox, test_label)
+
+# Создание и разметка главного меню
+btn_w = WIDTH // 3
+btn_h = HEIGHT // 12
+title_label = Label(WIDTH // 2 - 200, btn_h, 400, 200, image='title.png')
+difficulty_button = Button(btn_w, (btn_h + 5) * 4, btn_w, btn_h, text='Новичок: 8 x 8',
+                           on_click=lambda x: change_difficulty(difficulty_button))
+start_button = Button(btn_w, (btn_h + 5) * 5, btn_w, btn_h, text='Начать')
+settings_button = Button(btn_w, (btn_h + 5) * 6, btn_w, btn_h, text='Настройки')
+leaderboard_button = Button(btn_w, (btn_h + 5) * 7, btn_w, btn_h, text='Таблица лидеров')
+exit_button = Button(btn_w, (btn_h + 5) * 8, btn_w, btn_h, text='Выйти', on_click=lambda x: sys.exit())
+main_menu = Menu('Сапёр', difficulty_button, start_button, settings_button, leaderboard_button, exit_button,
+                 title_label)
+
 CURRENT = main_menu
 change_current('game')
 
