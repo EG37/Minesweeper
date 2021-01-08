@@ -357,6 +357,7 @@ class Board:
 
 
 def change_difficulty(sender):
+    global SETTINGS
     levels = {
         0: 'Новичок: 8 x 8',
         1: 'Любитель: 16 х 16',
@@ -383,15 +384,15 @@ btn_h = HEIGHT // 12
 title_label = Label(WIDTH // 2 - 200, btn_h, 400, 200, image='title.png')
 difficulty_button = Button(btn_w, (btn_h + 5) * 4, btn_w, btn_h, text='Новичок: 8 x 8',
                            on_click=lambda x: change_difficulty(difficulty_button))
-start_button = Button(btn_w, (btn_h + 5) * 5, btn_w, btn_h, text='Начать')
-settings_button = Button(btn_w, (btn_h + 5) * 6, btn_w, btn_h, text='Настройки')
-leaderboard_button = Button(btn_w, (btn_h + 5) * 7, btn_w, btn_h, text='Таблица лидеров')
+start_button = Button(btn_w, (btn_h + 5) * 5, btn_w, btn_h, text='Начать', on_click=lambda x: change_current('game'))
+settings_button = Button(btn_w, (btn_h + 5) * 6, btn_w, btn_h, text='Настройки',
+                         on_click=lambda x: change_current('settings'))
+leaderboard_button = Button(btn_w, (btn_h + 5) * 7, btn_w, btn_h, text='Таблица лидеров',
+                            on_click=lambda x: change_current('leaderboard'))
 exit_button = Button(btn_w, (btn_h + 5) * 8, btn_w, btn_h, text='Выйти', on_click=lambda x: sys.exit())
 main_menu = Menu('Сапёр', difficulty_button, start_button, settings_button, leaderboard_button, exit_button,
                  title_label)
-
 CURRENT = main_menu
-change_current('game')
 
 
 if __name__ == '__main__':
