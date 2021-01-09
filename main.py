@@ -2,9 +2,13 @@ from win32api import GetSystemMetrics
 import pygame
 import os
 import sys
-from random import sample
+from random import sample, choice
 
-
+SIZE = WIDTH, HEIGHT = GetSystemMetrics(0), GetSystemMetrics(1)
+clock = pygame.time.Clock()
+pygame.init()
+pygame.mixer.init()
+screen = pygame.display.set_mode(SIZE)
 SETTINGS = {
     'difficulty': 0,
     'easy start': True,
@@ -13,6 +17,8 @@ SETTINGS = {
     'bomb sound': True,
     'victory sound': True
 }
+GRAVITY = 0.1
+particles = pygame.sprite.Group()
 
 
 def load_image(name, colorkey=None):
@@ -66,6 +72,27 @@ def change_settings(parameter):
         SETTINGS['victory sound'] = not SETTINGS['victory sound']
     if parameter == 'Звук поражения':
         SETTINGS['bomb sound'] = not SETTINGS['bomb sound']
+
+
+class Particle(pygame.sprite.Sprite):
+    fire = [load_image("star.png")]
+    for scale in (5, 10, 20):
+        fire.append(pygame.transform.scale(fire[0], (scale, scale)))
+
+    def __init__(self, pos, dx, dy):
+        super().__init__(particles)
+        self.image = choice(self.fire)
+        self.rect = self.image.get_rect()
+        self.velocity = [dx, dy]
+        self.rect.x, self.rect.y = pos
+        self.gravity = GRAVITY
+
+    def update(self):
+        self.velocity[1] += self.gravity
+        self.rect.x += self.velocity[0]
+        self.rect.y += self.velocity[1]
+        if not self.rect.colliderect((0, 0, WIDTH, HEIGHT)):
+            self.kill()
 
 
 class AnimatedSprite(pygame.sprite.Sprite):
@@ -467,6 +494,9 @@ class Board:
             trumpet.play()
         self.time_label.set_text(str((pygame.time.get_ticks() - self.start_time) // 1000))
         self.start_time = None
+        numbers = range(-5, 6)
+        for _ in range(100):
+            Particle((WIDTH // 2, HEIGHT // 3), choice(numbers), choice(numbers))
 
     def show_lose_scene(self):
         image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -492,6 +522,8 @@ class Board:
         screen.blit(text, (text_x, text_y))
         cup = load_image('cup.png', -1)
         screen.blit(cup, (WIDTH // 2 - cup.get_width() // 2, HEIGHT // 2 - cup.get_height() // 2))
+        particles.update()
+        particles.draw(screen)
 
 
 def change_difficulty(sender):
@@ -507,11 +539,6 @@ def change_difficulty(sender):
     sender.text = levels[SETTINGS['difficulty']]
 
 
-SIZE = WIDTH, HEIGHT = GetSystemMetrics(0), GetSystemMetrics(1)
-clock = pygame.time.Clock()
-pygame.init()
-pygame.mixer.init()
-screen = pygame.display.set_mode(SIZE)
 FONT = pygame.font.Font('pixel_font.otf', 40)
 test_button = Button(10, 10, 100, 100, 'test', on_click=lambda x: print('test'))
 test_checkbox = Checkbox(10, 120, 100, 100, text='ТестТестТест')
