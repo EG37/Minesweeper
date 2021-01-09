@@ -28,6 +28,15 @@ def load_image(name, colorkey=None):
     return image
 
 
+def load_sound(name):
+    fullname = os.path.join('data', name)
+    if not os.path.isfile(fullname):
+        print(f"Файл со звуком '{fullname}' не найден")
+        sys.exit()
+    sound = pygame.mixer.Sound(fullname)
+    return sound
+
+
 def change_current(state):
     global CURRENT
     CURRENT.stop()
@@ -35,6 +44,33 @@ def change_current(state):
         CURRENT = Board()
     if state == 'main menu':
         CURRENT = main_menu
+
+
+class AnimatedSprite(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y, freq):
+        super().__init__()
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+        self.freq = freq
+        self.n = 0
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self):
+        self.n += 1
+        if self.n % self.freq == 0:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
 
 
 class Label:
@@ -208,6 +244,8 @@ class Board:
         self.top = self.cell_side + 20
         self.tile_img = pygame.transform.scale(load_image('tile.png'), (self.cell_side - 1, self.cell_side - 1))
         self.flag_img = pygame.transform.scale(load_image('flag1.png'), (self.cell_side - 1, self.cell_side - 1))
+        self.bomb_img = pygame.transform.scale(load_image('bomb.png'), (self.cell_side - 1, self.cell_side - 1))
+        self.bomb1_img = pygame.transform.scale(load_image('bomb1.png'), (self.cell_side - 1, self.cell_side - 1))
         self.field = [['#' for x in range(self.field_size[1])] for y in range(self.field_size[0])]
         self.bombs_set = False
         self.start_time = None
@@ -219,6 +257,7 @@ class Board:
             '4': (8, 3, 119),
             '5': (139, 0, 0)
         }
+        self.lost, self.won = False, False
 
     def set_cells_size(self):
         if SETTINGS['difficulty'] == 1:
@@ -245,6 +284,10 @@ class Board:
                     screen.blit(self.tile_img, (i * self.cell_side + self.left, j * self.cell_side + self.top + 1))
                 elif self.field[j][i] == 'f':
                     screen.blit(self.flag_img, (i * self.cell_side + self.left, j * self.cell_side + self.top + 1))
+                elif self.field[j][i] == 'b':
+                    screen.blit(self.bomb_img, (i * self.cell_side + self.left, j * self.cell_side + self.top + 1))
+                elif self.field[j][i] == '@':
+                    screen.blit(self.bomb1_img, (i * self.cell_side + self.left, j * self.cell_side + self.top + 1))
                 elif self.field[j][i].isnumeric() and self.field[j][i] != '0':
                     color = (0, 0, 0)
                     if 1 <= int(self.field[j][i]) <= 5:
@@ -253,10 +296,14 @@ class Board:
                     text_x = (i + 0.5) * self.cell_side + self.left - text.get_width() // 2
                     text_y = (j + 0.5) * self.cell_side + self.top - text.get_height() // 2
                     screen.blit(text, (text_x, text_y))
+        if self.lost:
+            self.show_lose_scene()
+        if self.won:
+            self.show_win_scene()
 
     def get_event(self, type, pos, button):
         if self.active:
-            if type == pygame.MOUSEBUTTONUP:
+            if type == pygame.MOUSEBUTTONUP and not self.lost and not self.won:
                 cell = self.get_cell(pos)
                 if cell:
                     self.on_click(cell, button)
@@ -281,6 +328,18 @@ class Board:
         if button == 1:
             if self.field[y][x] != 'f':
                 cells = self.check_cell(x, y)
+                cells = set(cells) if cells else None
+                while cells:
+                    cell = cells.pop()
+                    row = cell // self.field_size[1]
+                    col = cell % self.field_size[1]
+                    if cell not in self.clean_cells:
+                        self.clean_cells.append(cell)
+                    result = self.check_cell(col, row)
+                    if result:
+                        for i in result:
+                            if i not in self.clean_cells:
+                                cells.add(i)
         if button == 3:
             if self.field[y][x] != 'f' and self.flags:
                 self.field[y][x] = 'f'
@@ -289,6 +348,13 @@ class Board:
                 self.field[y][x] = '#'
                 self.flags += 1
             self.flags_label.set_text(str(self.flags))
+        if self.flags == 0:
+            self.won = True
+            for i in self.field:
+                if any(map(lambda c: c == '#', i)):
+                    self.won = False
+            if self.won:
+                self.win()
 
     def set_bombs(self, clean_cell):
         numbers = [i for i in range(self.field_size[0] * self.field_size[1])]
@@ -308,7 +374,7 @@ class Board:
         modifier = self.field_size[1]
         index = row * modifier + col
         if index in self.bomb_cells:
-            self.lose()
+            self.lose(col, row)
         else:
             if row > 0:
                 if (row - 1) * modifier + col in self.bomb_cells:
@@ -352,8 +418,51 @@ class Board:
                 return cells_around
             return None
 
-    def lose(self):
-        pass
+    def lose(self, col, row):
+        self.field[row][col] = 'b'
+        del self.bomb_cells[self.bomb_cells.index(row * self.field_size[1] + col)]
+        for index in self.bomb_cells:
+            row = index // self.field_size[1]
+            col = index % self.field_size[1]
+            if self.field[row][col] != 'f':
+                self.field[row][col] = '@'
+        explosion = load_sound('boom.mp3')
+        explosion.play()
+        self.time_label.set_text(str((pygame.time.get_ticks() - self.start_time) // 1000))
+        self.start_time = None
+        self.lost = True
+        self.explosion = AnimatedSprite(load_image('explosion_sheet6x2.png', -1), 6, 2, WIDTH // 2 - 150,
+                                        HEIGHT // 2 - 156, 8)
+
+    def win(self):
+        trumpet = load_sound('victory.mp3')
+        trumpet.play()
+        self.time_label.set_text(str((pygame.time.get_ticks() - self.start_time) // 1000))
+        self.start_time = None
+
+    def show_lose_scene(self):
+        image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        pygame.draw.rect(image, (240, 240, 240, 125), image.get_rect())
+        screen.blit(image, (0, self.cell_side + 7))
+        text = pygame.font.Font('pixel_font.otf', 70).render('Вы проиграли!', True, (0, 0, 0))
+        text_x = WIDTH // 2 - text.get_width() // 2
+        text_y = HEIGHT // 4 - text.get_height() // 2
+        screen.blit(text, (text_x, text_y))
+        self.explosion.update()
+        group = pygame.sprite.Group()
+        group.add(self.explosion)
+        group.draw(screen)
+
+    def show_win_scene(self):
+        image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        pygame.draw.rect(image, (240, 240, 240, 125), image.get_rect())
+        screen.blit(image, (0, self.cell_side + 7))
+        text = pygame.font.Font('pixel_font.otf', 70).render('Вы выиграли!', True, (0, 0, 0))
+        text_x = WIDTH // 2 - text.get_width() // 2
+        text_y = HEIGHT // 4 - text.get_height() // 2
+        screen.blit(text, (text_x, text_y))
+        cup = load_image('cup.png')
+        screen.blit(cup, (WIDTH // 2 - cup.get_width() // 2, HEIGHT // 2 - cup.get_height() // 2))
 
 
 def change_difficulty(sender):
@@ -372,6 +481,7 @@ def change_difficulty(sender):
 SIZE = WIDTH, HEIGHT = GetSystemMetrics(0), GetSystemMetrics(1)
 clock = pygame.time.Clock()
 pygame.init()
+pygame.mixer.init()
 screen = pygame.display.set_mode(SIZE)
 FONT = pygame.font.Font('pixel_font.otf', 40)
 test_button = Button(10, 10, 100, 100, 'test', on_click=lambda x: print('test'))
@@ -409,4 +519,5 @@ if __name__ == '__main__':
             CURRENT.get_event(event.type, pygame.mouse.get_pos(), button)
         clock.tick()
         pygame.display.flip()
+    pygame.mixer.quit()
     pygame.quit()
