@@ -8,7 +8,10 @@ from random import sample
 SETTINGS = {
     'difficulty': 0,
     'easy start': True,
-    'timer': True
+    'timer': True,
+    'general sound': True,
+    'bomb sound': True,
+    'victory sound': True
 }
 
 
@@ -44,6 +47,25 @@ def change_current(state):
         CURRENT = Board()
     if state == 'main menu':
         CURRENT = main_menu
+    if state == 'settings':
+        CURRENT = settings_menu
+
+
+def change_settings(parameter):
+    if parameter == 'Лёгкое начало':
+        SETTINGS['easy start'] = not SETTINGS['easy start']
+    if parameter == 'Таймер':
+        SETTINGS['timer'] = not SETTINGS['timer']
+    if parameter == 'Общий звук':
+        SETTINGS['general sound'] = not SETTINGS['general sound']
+        SETTINGS['bomb sound'] = SETTINGS['general sound']
+        bomb_sound_cbox.checked = SETTINGS['general sound']
+        SETTINGS['victory sound'] = SETTINGS['general sound']
+        victory_sound_cbox.checked = SETTINGS['general sound']
+    if parameter == 'Звук победы':
+        SETTINGS['victory sound'] = not SETTINGS['victory sound']
+    if parameter == 'Звук поражения':
+        SETTINGS['bomb sound'] = not SETTINGS['bomb sound']
 
 
 class AnimatedSprite(pygame.sprite.Sprite):
@@ -169,7 +191,7 @@ class Checkbox(Button):
         if text:
             text = FONT.render(self.text, True, (0, 0, 0))
             self.rect.width = text.get_width() + 75
-            self.rect.height = 80
+            self.rect.height = 70
 
     def draw(self):
         pygame.draw.rect(screen, self.colors[self.state][1], (self.rect.x, self.rect.y + 25, 50, 50),
@@ -185,7 +207,7 @@ class Checkbox(Button):
         if self.text:
             text = FONT.render(self.text, True, (0, 0, 0))
             text_x = self.rect.x + 75
-            text_y = self.rect.y + 25 + text.get_height() // 2
+            text_y = self.rect.y + 10 + text.get_height() // 2
             screen.blit(text, (text_x, text_y))
 
     def get_mouse_up(self, pos):
@@ -258,6 +280,8 @@ class Board:
             '5': (139, 0, 0)
         }
         self.lost, self.won = False, False
+        self.main_menu_btn = Button(WIDTH // 2 - 200, HEIGHT // 4 * 3, 400, 100, text='Выйти в главное меню',
+                                    on_click=lambda x: change_current('main menu'))
 
     def set_cells_size(self):
         if SETTINGS['difficulty'] == 1:
@@ -309,6 +333,8 @@ class Board:
                     self.on_click(cell, button)
             for widget in self.widgets:
                 widget.get_event(type, pos, button)
+            if self.lost:
+                self.main_menu_btn.get_event(type, pos, button)
 
     def stop(self):
         self.active = False
@@ -426,8 +452,9 @@ class Board:
             col = index % self.field_size[1]
             if self.field[row][col] != 'f':
                 self.field[row][col] = '@'
-        explosion = load_sound('boom.mp3')
-        explosion.play()
+        if SETTINGS['bomb sound']:
+            explosion = load_sound('boom.mp3')
+            explosion.play()
         self.time_label.set_text(str((pygame.time.get_ticks() - self.start_time) // 1000))
         self.start_time = None
         self.lost = True
@@ -435,8 +462,9 @@ class Board:
                                         HEIGHT // 2 - 156, 8)
 
     def win(self):
-        trumpet = load_sound('victory.mp3')
-        trumpet.play()
+        if SETTINGS['victory sound']:
+            trumpet = load_sound('victory.mp3')
+            trumpet.play()
         self.time_label.set_text(str((pygame.time.get_ticks() - self.start_time) // 1000))
         self.start_time = None
 
@@ -452,6 +480,7 @@ class Board:
         group = pygame.sprite.Group()
         group.add(self.explosion)
         group.draw(screen)
+        self.main_menu_btn.draw()
 
     def show_win_scene(self):
         image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -502,6 +531,27 @@ leaderboard_button = Button(btn_w, (btn_h + 5) * 7, btn_w, btn_h, text='Табл
 exit_button = Button(btn_w, (btn_h + 5) * 8, btn_w, btn_h, text='Выйти', on_click=lambda x: sys.exit())
 main_menu = Menu('Сапёр', difficulty_button, start_button, settings_button, leaderboard_button, exit_button,
                  title_label)
+
+# Создание и разметка окна настроек
+settings_lbl = Label(10, 20, 200, 50, text='Настройки:')
+easy_start_cbox = Checkbox(20, 60, WIDTH, 60, text='Лёгкое начало', on_click=lambda x: change_settings('Лёгкое начало'))
+easy_start_cbox.checked = SETTINGS['easy start']
+easy_start_lbl = Label(345, 150, 200, 50, text='Первое открытое поле гарантированно будет пустым')
+timer_cbox = Checkbox(20, 200, WIDTH, 60, text='Таймер', on_click=lambda x: change_settings('Таймер'))
+timer_cbox.checked = SETTINGS['timer']
+timer_lbl = Label(730, 290, 100, 50, text='Таймер фиксирует время, затраченное на игру, '
+                                          'позволяя занести результат в таблицу лидеров')
+general_sound_cbox = Checkbox(20, 340, WIDTH, 60, text='Общий звук', on_click=lambda x: change_settings('Общий звук'))
+general_sound_cbox.checked = SETTINGS['general sound']
+victory_sound_cbox = Checkbox(20, 410, WIDTH, 60, text='Звук победы', on_click=lambda x: change_settings('Звук победы'))
+victory_sound_cbox.checked = SETTINGS['victory sound']
+bomb_sound_cbox = Checkbox(20, 480, WIDTH, 60, text='Звук поражения',
+                           on_click=lambda x: change_settings('Звук поражния'))
+main_menu_btn = Button(10, HEIGHT - 150, 300, 100, text='Выйти в меню', on_click=lambda x: change_current('main menu'))
+bomb_sound_cbox.checked = SETTINGS['bomb sound']
+settings_menu = Menu('Настройки', easy_start_cbox, settings_lbl, easy_start_lbl, timer_cbox, timer_lbl,
+                     general_sound_cbox, victory_sound_cbox, bomb_sound_cbox, main_menu_btn)
+
 CURRENT = main_menu
 
 
