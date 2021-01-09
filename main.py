@@ -461,7 +461,7 @@ class Board:
         text_x = WIDTH // 2 - text.get_width() // 2
         text_y = HEIGHT // 4 - text.get_height() // 2
         screen.blit(text, (text_x, text_y))
-        cup = load_image('cup.png')
+        cup = load_image('cup.png', -1)
         screen.blit(cup, (WIDTH // 2 - cup.get_width() // 2, HEIGHT // 2 - cup.get_height() // 2))
 
 
