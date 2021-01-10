@@ -3,6 +3,7 @@ import pygame
 import os
 import sys
 from random import sample, choice
+import sqlite3
 
 SIZE = WIDTH, HEIGHT = GetSystemMetrics(0), GetSystemMetrics(1)
 clock = pygame.time.Clock()
@@ -19,6 +20,12 @@ SETTINGS = {
 }
 GRAVITY = 0.1
 particles = pygame.sprite.Group()
+EDITING = False
+TEXT = ""
+TEXT_POS = 0
+EDITING_TEXT = ""
+EDITING_POS = 0
+TIME = 0
 
 
 def load_image(name, colorkey=None):
@@ -47,9 +54,10 @@ def load_sound(name):
 
 
 def change_current(state):
-    global CURRENT
+    global CURRENT, TIME
     CURRENT.stop()
     if state == 'game':
+        TIME = 0
         CURRENT = Board()
     if state == 'main menu':
         CURRENT = main_menu
@@ -206,6 +214,30 @@ class Button:
         self.text = text
 
 
+class InputField(Button):
+    def __init__(self, x, y, width, height):
+        super().__init__(x, y, width, height)
+        self.text = ''
+        self.recording = False
+
+    def get_event(self, type, pos, button):
+        if type == pygame.MOUSEBUTTONUP and button == 1:
+            self.get_mouse_up(pos)
+
+    def get_mouse_up(self, pos):
+        if self.rect.collidepoint(pos):
+            pygame.key.start_text_input()
+
+    def draw(self):
+        pygame.draw.rect(screen, (255, 255, 255), self.rect)
+        pygame.draw.rect(screen, (0, 0, 0), self.rect, width=5, border_radius=3)
+        if TEXT:
+            self.text = TEXT
+        text = FONT.render(self.text, True, (0, 0, 0))
+        text_y = self.rect.y + self.rect.height // 2 - text.get_height() // 2
+        screen.blit(text, (self.rect.x + 10, text_y))
+
+
 class Checkbox(Button):
     def __init__(self, x, y, width, height, text='', on_click=lambda x: None):
         super().__init__(x, y, width, height, text=text, on_click=on_click)
@@ -265,6 +297,10 @@ class Menu:
     def stop(self):
         self.active = False
 
+    def get_key(self, key):
+        if key == pygame.K_ESCAPE:
+            sys.exit()
+
 
 class Board:
     def __init__(self):
@@ -309,6 +345,11 @@ class Board:
         self.lost, self.won = False, False
         self.main_menu_btn = Button(WIDTH // 2 - 200, HEIGHT // 4 * 3, 400, 100, text='Выйти в главное меню',
                                     on_click=lambda x: change_current('main menu'))
+        self.input_field = InputField(WIDTH // 2 - 200, HEIGHT // 4 * 3 + 50, 400, 100)
+
+    def get_key(self, key):
+        if key == pygame.K_ESCAPE:
+            change_current('main menu')
 
     def set_cells_size(self):
         if SETTINGS['difficulty'] == 1:
@@ -320,11 +361,15 @@ class Board:
         self.cell_side = int(min(SIZE) / 17) - 2
 
     def run(self):
+        global TIME
         pygame.display.set_caption('Сапёр')
         self.active = True
         screen.fill((240, 240, 240))
         if SETTINGS['timer'] and self.start_time:
-            self.time_label.set_text(str((pygame.time.get_ticks() - self.start_time) // 1000))
+            if (pygame.time.get_ticks() - self.start_time) >= 1000:
+                self.start_time = pygame.time.get_ticks()
+                TIME += 1
+            self.time_label.set_text(str(TIME))
         for widget in self.widgets:
             widget.draw()
         for i in range(self.field_size[1]):
@@ -362,6 +407,8 @@ class Board:
                 widget.get_event(type, pos, button)
             if self.lost:
                 self.main_menu_btn.get_event(type, pos, button)
+            elif self.won:
+                self.input_field.get_event(type, pos, button)
 
     def stop(self):
         self.active = False
@@ -524,6 +571,27 @@ class Board:
         screen.blit(cup, (WIDTH // 2 - cup.get_width() // 2, HEIGHT // 2 - cup.get_height() // 2))
         particles.update()
         particles.draw(screen)
+        self.input_field.draw()
+        Label(WIDTH // 2 - 200, HEIGHT // 4 * 3 - 50, 400, 100, text='Введите ваше имя:').draw()
+
+
+def end_editing():
+    pygame.key.stop_text_input()
+    fullname = os.path.join('data', "Leaderboard.db")
+    con = sqlite3.connect(fullname)
+    cur = con.cursor()
+    old_time = cur.execute(f'''SELECT Time from Players
+                    WHERE Name = "{TEXT}" AND Difficulty = {SETTINGS['difficulty']}''').fetchone()
+    if old_time:
+        if old_time[0] > TIME:
+            cur.execute(f"""UPDATE Players 
+                                    SET Time = {TEXT.time}
+                                    WHERE Name = '{TEXT}'""").fetchall()
+    else:
+        cur.execute(f"""INSERT INTO Players(Name, Difficulty, Time)
+                        VALUES('{TEXT}', {SETTINGS['difficulty']}, {TIME})""").fetchall()
+    con.commit()
+    change_current('main menu')
 
 
 def change_difficulty(sender):
@@ -588,12 +656,43 @@ if __name__ == '__main__':
     while running:
         CURRENT.run()
         for event in pygame.event.get():
-            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+            if event.type == pygame.QUIT:
                 running = False
-            button = None
-            if event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEBUTTONUP:
-                button = event.button
-            CURRENT.get_event(event.type, pygame.mouse.get_pos(), button)
+            elif event.type == pygame.KEYDOWN:
+                if EDITING:
+                    if len(EDITING_TEXT) == 0:
+                        EDITING = False
+                    continue
+                if event.key == pygame.K_BACKSPACE:
+                    if len(TEXT) > 0 and TEXT_POS > 0:
+                        TEXT = TEXT[:TEXT_POS - 1] + TEXT[TEXT_POS:]
+                        TEXT_POS -= 1
+                elif event.key == pygame.K_DELETE:
+                    TEXT = TEXT[:TEXT_POS] + TEXT[TEXT_POS + 1:]
+                elif event.key == pygame.K_LEFT and TEXT_POS != 0:
+                    TEXT_POS -= 1
+                elif event.key == pygame.K_RIGHT and TEXT_POS != len(TEXT):
+                    TEXT_POS += 1
+
+                elif event.key in [pygame.K_RETURN, pygame.K_KP_ENTER] and len(event.unicode) == 0:
+                    end_editing()
+            elif event.type == pygame.TEXTEDITING:
+                EDITING = True
+                EDITING_TEXT = event.text
+                EDITING_POS = event.start
+            elif event.type == pygame.TEXTINPUT:
+                EDITING = False
+                EDITING_TEXT = ""
+                TEXT = TEXT[:TEXT_POS] + event.text + TEXT[TEXT_POS:]
+                TEXT_POS += len(event.text)
+
+            if event.type in [pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION]:
+                button = None
+                if event.type != pygame.MOUSEMOTION:
+                    button = event.button
+                CURRENT.get_event(event.type, pygame.mouse.get_pos(), button)
+            if event.type == pygame.KEYDOWN:
+                CURRENT.get_key(event.key)
         clock.tick()
         pygame.display.flip()
     pygame.mixer.quit()
