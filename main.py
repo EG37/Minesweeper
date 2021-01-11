@@ -65,6 +65,8 @@ def change_current(state):
         CURRENT = settings_menu
     if state == 'help':
         CURRENT = help_menu
+    if state == 'leaderboard':
+        CURRENT = leaderboard_menu
 
 
 def change_help(action):
@@ -91,6 +93,26 @@ def change_settings(parameter):
         SETTINGS['victory sound'] = not SETTINGS['victory sound']
     if parameter == 'Звук поражения':
         SETTINGS['bomb sound'] = not SETTINGS['bomb sound']
+
+
+def fill_leaderboard(difficulty):
+    global leaderboard_menu
+    fullname = os.path.join('data', "Leaderboard.db")
+    con = sqlite3.connect(fullname)
+    cur = con.cursor()
+    data = cur.execute(f'''SELECT * FROM Players 
+                                   WHERE Difficulty = {difficulty}''').fetchall()
+    data.sort(key=lambda x: x[3])
+    if len(leaderboard_menu.widgets) != 4:
+        text = leaderboard_menu.widgets[-1].text
+        if text == 'Здесь пока никого нет' or data == [] or text.split()[1] != data[-1][1]:
+            leaderboard_menu.widgets = [easy_btn, med_btn, hard_btn, top_lbl]
+    if data:
+        for i in range(min(10, len(data))):
+            player = str(i + 1) + ' ' + data[i][1] + ' ' + str(data[i][3]) + 'сек'
+            leaderboard_menu.add_widget(Label(0, (i + 1) * 70, WIDTH, 50, text=player))
+    else:
+        leaderboard_menu.add_widget(Label(0, 70, WIDTH, 50, text='Здесь пока никого нет'))
 
 
 class Particle(pygame.sprite.Sprite):
@@ -289,7 +311,7 @@ class Checkbox(Button):
 
 class Menu:
     def __init__(self, title, *widgets):
-        self.widgets = widgets
+        self.widgets = list(widgets)
         self.title = title
         self.active = False
 
@@ -311,6 +333,9 @@ class Menu:
     def get_key(self, key):
         if key == pygame.K_ESCAPE:
             sys.exit()
+
+    def add_widget(self, widget):
+        self.widgets.append(widget)
 
 
 class Board:
@@ -665,6 +690,12 @@ next_btn = Button(320, HEIGHT - 150, 300, 100, text='Далее', on_click=lambd
 help_menu = Menu('Как играть', previous_btn, next_btn,
                  Button(630, HEIGHT - 150, 300, 100, text='Выйти в меню',
                         on_click=lambda x: change_current('main menu')), help_image)
+
+easy_btn = Button(10, HEIGHT - 150, 300, 100, text='Новичок', on_click=lambda x: fill_leaderboard(0))
+med_btn = Button(320, HEIGHT - 150, 300, 100, text='Любитель', on_click=lambda x: fill_leaderboard(1))
+hard_btn = Button(630, HEIGHT - 150, 300, 100, text='Профессионал', on_click=lambda x: fill_leaderboard(2))
+top_lbl = Label(0, 10, WIDTH, 50, text='Топ игроков:')
+leaderboard_menu = Menu('Таблица лидеров', easy_btn, med_btn, hard_btn, top_lbl)
 
 CURRENT = main_menu
 
