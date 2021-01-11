@@ -63,6 +63,17 @@ def change_current(state):
         CURRENT = main_menu
     if state == 'settings':
         CURRENT = settings_menu
+    if state == 'help':
+        CURRENT = help_menu
+
+
+def change_help(action):
+    if help_image.n != 1 and action == '-':
+        help_image.n -= 1
+    if help_image.n != 5 and action == '+':
+        help_image.n += 1
+    name = 'help_' + str(help_image.n) + '.png'
+    help_image.image = load_image(name)
 
 
 def change_settings(parameter):
@@ -646,6 +657,14 @@ main_menu_btn = Button(10, HEIGHT - 150, 300, 100, text='Выйти в меню'
 bomb_sound_cbox.checked = SETTINGS['bomb sound']
 settings_menu = Menu('Настройки', easy_start_cbox, settings_lbl, easy_start_lbl, timer_cbox, timer_lbl,
                      general_sound_cbox, victory_sound_cbox, bomb_sound_cbox, main_menu_btn)
+
+help_image = Label(WIDTH / 558, 10, 1116, 862, image='help_1.png')
+help_image.n = 1
+previous_btn = Button(10, HEIGHT - 150, 300, 100, text='Назад', on_click=lambda x: change_help('-'))
+next_btn = Button(320, HEIGHT - 150, 300, 100, text='Далее', on_click=lambda x: change_help('+'))
+help_menu = Menu('Как играть', previous_btn, next_btn,
+                 Button(630, HEIGHT - 150, 300, 100, text='Выйти в меню',
+                        on_click=lambda x: change_current('main menu')), help_image)
 
 CURRENT = main_menu
 
