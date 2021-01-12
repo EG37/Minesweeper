@@ -5,11 +5,14 @@ import sys
 from random import sample, choice
 import sqlite3
 
+# Глобальнаые переменные с размером экраан
 SIZE = WIDTH, HEIGHT = GetSystemMetrics(0), GetSystemMetrics(1)
-clock = pygame.time.Clock()
+# Инициализация пайгейма, миксера и экрана, также шрифт
 pygame.init()
 pygame.mixer.init()
 screen = pygame.display.set_mode(SIZE)
+FONT = pygame.font.Font('pixel_font.otf', 40)
+# Глобальная переменная настроек и переменные для частиц
 SETTINGS = {
     'difficulty': 0,
     'easy start': True,
@@ -20,6 +23,7 @@ SETTINGS = {
 }
 GRAVITY = 0.1
 particles = pygame.sprite.Group()
+# Глобальные переменные для ввода текста после победы
 EDITING = False
 TEXT = ""
 TEXT_POS = 0
@@ -28,6 +32,7 @@ EDITING_POS = 0
 TIME = 0
 
 
+# Функция для загрузки изображений
 def load_image(name, colorkey=None):
     fullname = os.path.join('data', name)
     if not os.path.isfile(fullname):
@@ -44,6 +49,7 @@ def load_image(name, colorkey=None):
     return image
 
 
+# Функция для загрузки звука
 def load_sound(name):
     fullname = os.path.join('data', name)
     if not os.path.isfile(fullname):
@@ -53,6 +59,7 @@ def load_sound(name):
     return sound
 
 
+# Функцция для смены окна
 def change_current(state):
     global CURRENT, TIME
     CURRENT.stop()
@@ -69,6 +76,7 @@ def change_current(state):
         CURRENT = leaderboard_menu
 
 
+# Функция для смены изображений в окне помощи
 def change_help(action):
     if help_image.n != 1 and action == '-':
         help_image.n -= 1
@@ -78,6 +86,7 @@ def change_help(action):
     help_image.image = load_image(name)
 
 
+# Функция для изменения настроек
 def change_settings(parameter):
     if parameter == 'Лёгкое начало':
         SETTINGS['easy start'] = not SETTINGS['easy start']
@@ -95,6 +104,7 @@ def change_settings(parameter):
         SETTINGS['bomb sound'] = not SETTINGS['bomb sound']
 
 
+# Функция для заполнения таблицы лидеров
 def fill_leaderboard(difficulty):
     global leaderboard_menu
     fullname = os.path.join('data', "Leaderboard.db")
@@ -115,6 +125,21 @@ def fill_leaderboard(difficulty):
         leaderboard_menu.add_widget(Label(0, 70, WIDTH, 50, text='Здесь пока никого нет'))
 
 
+# Функция для смены уровня сложности
+def change_difficulty(sender):
+    global SETTINGS
+    levels = {
+        0: 'Новичок: 8 x 8',
+        1: 'Любитель: 16 х 16',
+        2: 'Профессионал: 30 х 16',
+    }
+    SETTINGS['difficulty'] += 1
+    if SETTINGS['difficulty'] >= 3:
+        SETTINGS['difficulty'] = 0
+    sender.text = levels[SETTINGS['difficulty']]
+
+
+# Класс частицы
 class Particle(pygame.sprite.Sprite):
     fire = [load_image("star.png")]
     for scale in (5, 10, 20):
@@ -136,6 +161,7 @@ class Particle(pygame.sprite.Sprite):
             self.kill()
 
 
+# Класс анимированного спрайта
 class AnimatedSprite(pygame.sprite.Sprite):
     def __init__(self, sheet, columns, rows, x, y, freq):
         super().__init__()
@@ -163,6 +189,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
             self.image = self.frames[self.cur_frame]
 
 
+# Класс ярлыка/лейбла
 class Label:
     def __init__(self, x, y, width, height, text='', image='', border_width=0):
         self.rect = pygame.rect.Rect(x, y, width, height)
@@ -191,12 +218,14 @@ class Label:
         self.text = text
 
 
+# Класс кнопки
 class Button:
     def __init__(self, x, y, width, height, text='', on_click=lambda x: None, image=''):
         self.rect = pygame.rect.Rect(x, y, width, height)
         self.state = 'up'
         self.text = text
         self.on_click = on_click
+        # Переменная для смены цвета кнопки при нажатии или наведении на неё
         self.colors = {
             'up': (225, 225, 225),
             'mid': (229, 241, 251),
@@ -207,6 +236,7 @@ class Button:
         else:
             self.image = None
 
+    # Обработка нажатия или движения мыши
     def get_event(self, type, pos, button):
         if type == pygame.MOUSEMOTION:
             self.get_mouse_motion(pos)
@@ -247,6 +277,7 @@ class Button:
         self.text = text
 
 
+# Класс поля для ввода
 class InputField(Button):
     def __init__(self, x, y, width, height):
         super().__init__(x, y, width, height)
@@ -271,6 +302,7 @@ class InputField(Button):
         screen.blit(text, (self.rect.x + 10, text_y))
 
 
+# Класс чекбокса
 class Checkbox(Button):
     def __init__(self, x, y, width, height, text='', on_click=lambda x: None):
         super().__init__(x, y, width, height, text=text, on_click=on_click)
@@ -309,6 +341,7 @@ class Checkbox(Button):
             self.checked = not self.checked
 
 
+# Класс меню
 class Menu:
     def __init__(self, title, *widgets):
         self.widgets = list(widgets)
@@ -322,6 +355,7 @@ class Menu:
         for widget in self.widgets:
             widget.draw()
 
+    # Обработка нажатия или движения для всех виджетов
     def get_event(self, type, pos, button):
         if self.active:
             for widget in self.widgets:
@@ -330,17 +364,15 @@ class Menu:
     def stop(self):
         self.active = False
 
-    def get_key(self, key):
-        if key == pygame.K_ESCAPE:
-            sys.exit()
-
     def add_widget(self, widget):
         self.widgets.append(widget)
 
 
+# Класс игрового поля
 class Board:
     def __init__(self):
         self.active = False
+        # Установка размеров поля и клеток
         if SETTINGS['difficulty'] == 0:
             self.field_size = (8, 8)
             self.flags = 10
@@ -348,6 +380,7 @@ class Board:
         else:
             self.set_cells_size()
 
+        # Виджеты поля
         self.restart_button = Button((WIDTH - self.cell_side) // 2, 5, self.cell_side, self.cell_side,
                                      on_click=lambda x: change_current('game'), image='smile.png')
         self.flags_label = Label((WIDTH - self.cell_side * self.field_size[1]) // 2, 5, self.cell_side * 1.5,
@@ -358,9 +391,15 @@ class Board:
                                   self.cell_side, text='?', on_click=lambda x: change_current('help'))
         self.pause_button = Button((WIDTH + self.cell_side * (self.field_size[1] - 6)) // 2, 5, self.cell_side,
                                    self.cell_side, text='|  |', on_click=lambda x: self.pause())
+        self.main_menu_btn = Button(WIDTH // 2 - 200, HEIGHT // 4 * 3, 400, 100, text='Выйти в главное меню',
+                                    on_click=lambda x: change_current('main menu'))
+        self.continue_btn = Button(WIDTH // 2 - 200, HEIGHT // 4 * 3 - 110, 400, 100, text='Продолжить',
+                                   on_click=lambda x: self.pause())
+        self.input_field = InputField(WIDTH // 2 - 200, HEIGHT // 4 * 3 + 50, 400, 100)
 
         self.widgets = [self.restart_button, self.flags_label, self.time_label, self.help_button, self.pause_button]
 
+        # Переменные для работы поля
         self.left = (WIDTH - self.cell_side * self.field_size[1]) // 2
         self.top = self.cell_side + 20
         self.tile_img = pygame.transform.scale(load_image('tile.png'), (self.cell_side - 1, self.cell_side - 1))
@@ -379,16 +418,7 @@ class Board:
             '5': (139, 0, 0)
         }
         self.lost, self.won = False, False
-        self.main_menu_btn = Button(WIDTH // 2 - 200, HEIGHT // 4 * 3, 400, 100, text='Выйти в главное меню',
-                                    on_click=lambda x: change_current('main menu'))
-        self.continue_btn = Button(WIDTH // 2 - 200, HEIGHT // 4 * 3 - 110, 400, 100, text='Продолжить',
-                                   on_click=lambda x: self.pause())
-        self.input_field = InputField(WIDTH // 2 - 200, HEIGHT // 4 * 3 + 50, 400, 100)
         self.paused = False
-
-    def get_key(self, key):
-        if key == pygame.K_ESCAPE:
-            change_current('main menu')
 
     def set_cells_size(self):
         if SETTINGS['difficulty'] == 1:
@@ -412,6 +442,7 @@ class Board:
             self.time_label.set_text(str(TIME))
         for widget in self.widgets:
             widget.draw()
+        # Отрисовка клеток
         for i in range(self.field_size[1]):
             for j in range(self.field_size[0]):
                 pygame.draw.rect(screen, (132, 132, 132), [i * self.cell_side + self.left, j * self.cell_side +
@@ -432,6 +463,7 @@ class Board:
                     text_x = (i + 0.5) * self.cell_side + self.left - text.get_width() // 2
                     text_y = (j + 0.5) * self.cell_side + self.top - text.get_height() // 2
                     screen.blit(text, (text_x, text_y))
+        # Отрисовка дополнительных сцен
         if self.lost:
             self.show_lose_scene()
         elif self.won:
@@ -458,6 +490,7 @@ class Board:
     def stop(self):
         self.active = False
 
+    # Получение клетки поля при нажатии
     def get_cell(self, mouse_pos):
         x = (mouse_pos[0] - self.left) // self.cell_side
         y = (mouse_pos[1] - self.top) // self.cell_side
@@ -465,6 +498,7 @@ class Board:
             return x, y
         return None
 
+    # Обработка нажатия на клетку поля, примерно как в предыдущем проекте
     def on_click(self, cell, button):
         x, y = cell
         if not self.bombs_set:
@@ -510,10 +544,12 @@ class Board:
                 self.bomb_cells = sample(numbers, self.flags)
         self.bombs_set = True
 
+    # Установка таймера
     def set_timer(self):
         if SETTINGS['timer']:
             self.start_time = pygame.time.get_ticks()
 
+    # Проверка клетки на наличие бомбы и бомбы вокруг
     def check_cell(self, col, row):
         bombs_around = 0
         cells_around = []
@@ -564,9 +600,12 @@ class Board:
                 return cells_around
             return None
 
+    # Функция проигрыша
     def lose(self, col, row):
+        # Отмечаем ту самую бомбу, на которую нажал игрок
         self.field[row][col] = 'b'
         del self.bomb_cells[self.bomb_cells.index(row * self.field_size[1] + col)]
+        # Расстановка неразорвавшихся бомб на поле
         for index in self.bomb_cells:
             row = index // self.field_size[1]
             col = index % self.field_size[1]
@@ -579,9 +618,11 @@ class Board:
             self.time_label.set_text(str((pygame.time.get_ticks() - self.start_time) // 1000))
         self.start_time = None
         self.lost = True
+        # Анимация взрыва
         self.explosion = AnimatedSprite(load_image('explosion_sheet6x2.png', -1), 6, 2, WIDTH // 2 - 150,
                                         HEIGHT // 2 - 156, 8)
 
+    # Функция выигрыша
     def win(self):
         if SETTINGS['victory sound']:
             trumpet = load_sound('victory.mp3')
@@ -590,9 +631,11 @@ class Board:
             self.time_label.set_text(str((pygame.time.get_ticks() - self.start_time) // 1000))
         self.start_time = None
         numbers = range(-5, 6)
+        # Запуск звездочек
         for _ in range(100):
             Particle((WIDTH // 2, HEIGHT // 3), choice(numbers), choice(numbers))
 
+    # Отрисовка сцены проигрыша
     def show_lose_scene(self):
         image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         pygame.draw.rect(image, (240, 240, 240, 125), image.get_rect())
@@ -607,6 +650,7 @@ class Board:
         group.draw(screen)
         self.main_menu_btn.draw()
 
+    # Отрисовка сцены выигрыша
     def show_win_scene(self):
         image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         pygame.draw.rect(image, (240, 240, 240, 125), image.get_rect())
@@ -622,9 +666,11 @@ class Board:
         self.input_field.draw()
         Label(WIDTH // 2 - 200, HEIGHT // 4 * 3 - 50, 400, 100, text='Введите ваше имя:').draw()
 
+    # Поставить/снять тайер с паузы
     def pause(self):
         self.paused = not self.paused
 
+    # Отрисовка сцены паузы
     def show_pause_scene(self):
         pygame.draw.rect(screen, (240, 240, 240), (0, 0, WIDTH, HEIGHT))
         text = pygame.font.Font('pixel_font.otf', 70).render('Пауза', True, (0, 0, 0))
@@ -635,6 +681,7 @@ class Board:
         self.continue_btn.draw()
 
 
+# Функция для завершения ввода текста после победы
 def end_editing():
     pygame.key.stop_text_input()
     if SETTINGS['timer']:
@@ -654,24 +701,6 @@ def end_editing():
         con.commit()
     change_current('main menu')
 
-
-def change_difficulty(sender):
-    global SETTINGS
-    levels = {
-        0: 'Новичок: 8 x 8',
-        1: 'Любитель: 16 х 16',
-        2: 'Профессионал: 30 х 16',
-    }
-    SETTINGS['difficulty'] += 1
-    if SETTINGS['difficulty'] >= 3:
-        SETTINGS['difficulty'] = 0
-    sender.text = levels[SETTINGS['difficulty']]
-
-
-FONT = pygame.font.Font('pixel_font.otf', 40)
-test_button = Button(10, 10, 100, 100, 'test', on_click=lambda x: print('test'))
-test_checkbox = Checkbox(10, 120, 100, 100, text='ТестТестТест')
-test_label = Label(0, 0, 100, 100, text='test', image='title.png')
 
 # Создание и разметка главного меню
 btn_w = WIDTH // 3
@@ -708,6 +737,7 @@ bomb_sound_cbox.checked = SETTINGS['bomb sound']
 settings_menu = Menu('Настройки', easy_start_cbox, settings_lbl, easy_start_lbl, timer_cbox, timer_lbl,
                      general_sound_cbox, victory_sound_cbox, bomb_sound_cbox, main_menu_btn)
 
+# Создание и разметка окна "Как играть ?"
 help_image = Label(WIDTH / 558, 10, 1116, 862, image='help_1.png')
 help_image.n = 1
 previous_btn = Button(10, HEIGHT - 150, 300, 100, text='Назад', on_click=lambda x: change_help('-'))
@@ -716,24 +746,28 @@ help_menu = Menu('Как играть', previous_btn, next_btn,
                  Button(630, HEIGHT - 150, 300, 100, text='Выйти в меню',
                         on_click=lambda x: change_current('main menu')), help_image)
 
+# Создание и разметка окна с таблицей лидеров
 easy_btn = Button(10, HEIGHT - 150, 300, 100, text='Новичок', on_click=lambda x: fill_leaderboard(0))
 med_btn = Button(320, HEIGHT - 150, 300, 100, text='Любитель', on_click=lambda x: fill_leaderboard(1))
 hard_btn = Button(630, HEIGHT - 150, 300, 100, text='Профессионал', on_click=lambda x: fill_leaderboard(2))
 top_lbl = Label(0, 10, WIDTH, 50, text='Топ игроков:')
 leaderboard_menu = Menu('Таблица лидеров', easy_btn, med_btn, hard_btn, top_lbl)
 
+# Глобальная переменнвя текущей сцены
 CURRENT = main_menu
 
 
 if __name__ == '__main__':
     running = True
-    clock = pygame.time.Clock()
     while running:
+        # Отрисовка текущей сцены
         CURRENT.run()
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            # Выход на Escape
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 running = False
             elif event.type == pygame.KEYDOWN:
+                # Обработка вводимого тектса
                 if EDITING:
                     if len(EDITING_TEXT) == 0:
                         EDITING = False
@@ -761,14 +795,12 @@ if __name__ == '__main__':
                 TEXT = TEXT[:TEXT_POS] + event.text + TEXT[TEXT_POS:]
                 TEXT_POS += len(event.text)
 
+            # Обработка действий мыши текущим окном
             if event.type in [pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION]:
                 button = None
                 if event.type != pygame.MOUSEMOTION:
                     button = event.button
                 CURRENT.get_event(event.type, pygame.mouse.get_pos(), button)
-            if event.type == pygame.KEYDOWN:
-                CURRENT.get_key(event.key)
-        clock.tick()
         pygame.display.flip()
     pygame.mixer.quit()
     pygame.quit()
