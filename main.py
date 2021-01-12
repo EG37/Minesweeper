@@ -357,7 +357,7 @@ class Board:
         self.help_button = Button((WIDTH - self.cell_side * (self.field_size[1] - 4)) // 2, 5, self.cell_side,
                                   self.cell_side, text='?', on_click=lambda x: change_current('help'))
         self.pause_button = Button((WIDTH + self.cell_side * (self.field_size[1] - 6)) // 2, 5, self.cell_side,
-                                   self.cell_side, text='|  |', on_click=lambda x: change_current('pause'))
+                                   self.cell_side, text='|  |', on_click=lambda x: self.pause())
 
         self.widgets = [self.restart_button, self.flags_label, self.time_label, self.help_button, self.pause_button]
 
@@ -381,7 +381,10 @@ class Board:
         self.lost, self.won = False, False
         self.main_menu_btn = Button(WIDTH // 2 - 200, HEIGHT // 4 * 3, 400, 100, text='Выйти в главное меню',
                                     on_click=lambda x: change_current('main menu'))
+        self.continue_btn = Button(WIDTH // 2 - 200, HEIGHT // 4 * 3 - 110, 400, 100, text='Продолжить',
+                                   on_click=lambda x: self.pause())
         self.input_field = InputField(WIDTH // 2 - 200, HEIGHT // 4 * 3 + 50, 400, 100)
+        self.paused = False
 
     def get_key(self, key):
         if key == pygame.K_ESCAPE:
@@ -403,8 +406,9 @@ class Board:
         screen.fill((240, 240, 240))
         if SETTINGS['timer'] and self.start_time:
             if (pygame.time.get_ticks() - self.start_time) >= 1000:
-                self.start_time = pygame.time.get_ticks()
-                TIME += 1
+                if not self.paused:
+                    self.start_time = pygame.time.get_ticks()
+                    TIME += 1
             self.time_label.set_text(str(TIME))
         for widget in self.widgets:
             widget.draw()
@@ -430,12 +434,14 @@ class Board:
                     screen.blit(text, (text_x, text_y))
         if self.lost:
             self.show_lose_scene()
-        if self.won:
+        elif self.won:
             self.show_win_scene()
+        elif self.paused:
+            self.show_pause_scene()
 
     def get_event(self, type, pos, button):
         if self.active:
-            if type == pygame.MOUSEBUTTONUP and not self.lost and not self.won:
+            if type == pygame.MOUSEBUTTONUP and not self.lost and not self.won and not self.paused:
                 cell = self.get_cell(pos)
                 if cell:
                     self.on_click(cell, button)
@@ -445,6 +451,9 @@ class Board:
                 self.main_menu_btn.get_event(type, pos, button)
             elif self.won:
                 self.input_field.get_event(type, pos, button)
+            elif self.paused:
+                self.main_menu_btn.get_event(type, pos, button)
+                self.continue_btn.get_event(type, pos, button)
 
     def stop(self):
         self.active = False
@@ -477,10 +486,10 @@ class Board:
                             if i not in self.clean_cells:
                                 cells.add(i)
         if button == 3:
-            if self.field[y][x] != 'f' and self.flags:
+            if self.field[y][x] == '#' and self.flags:
                 self.field[y][x] = 'f'
                 self.flags -= 1
-            else:
+            elif self.field[y][x] == 'f':
                 self.field[y][x] = '#'
                 self.flags += 1
             self.flags_label.set_text(str(self.flags))
@@ -493,6 +502,7 @@ class Board:
                 self.win()
 
     def set_bombs(self, clean_cell):
+        clean_cell = clean_cell[0] + clean_cell[1] * self.field_size[1]
         numbers = [i for i in range(self.field_size[0] * self.field_size[1])]
         self.bomb_cells = sample(numbers, self.flags)
         if SETTINGS['easy start']:
@@ -565,7 +575,8 @@ class Board:
         if SETTINGS['bomb sound']:
             explosion = load_sound('boom.mp3')
             explosion.play()
-        self.time_label.set_text(str((pygame.time.get_ticks() - self.start_time) // 1000))
+        if SETTINGS['timer']:
+            self.time_label.set_text(str((pygame.time.get_ticks() - self.start_time) // 1000))
         self.start_time = None
         self.lost = True
         self.explosion = AnimatedSprite(load_image('explosion_sheet6x2.png', -1), 6, 2, WIDTH // 2 - 150,
@@ -575,7 +586,8 @@ class Board:
         if SETTINGS['victory sound']:
             trumpet = load_sound('victory.mp3')
             trumpet.play()
-        self.time_label.set_text(str((pygame.time.get_ticks() - self.start_time) // 1000))
+        if SETTINGS['timer']:
+            self.time_label.set_text(str((pygame.time.get_ticks() - self.start_time) // 1000))
         self.start_time = None
         numbers = range(-5, 6)
         for _ in range(100):
@@ -610,23 +622,36 @@ class Board:
         self.input_field.draw()
         Label(WIDTH // 2 - 200, HEIGHT // 4 * 3 - 50, 400, 100, text='Введите ваше имя:').draw()
 
+    def pause(self):
+        self.paused = not self.paused
+
+    def show_pause_scene(self):
+        pygame.draw.rect(screen, (240, 240, 240), (0, 0, WIDTH, HEIGHT))
+        text = pygame.font.Font('pixel_font.otf', 70).render('Пауза', True, (0, 0, 0))
+        text_x = WIDTH // 2 - text.get_width() // 2
+        text_y = HEIGHT // 4 - text.get_height() // 2
+        screen.blit(text, (text_x, text_y))
+        self.main_menu_btn.draw()
+        self.continue_btn.draw()
+
 
 def end_editing():
     pygame.key.stop_text_input()
-    fullname = os.path.join('data', "Leaderboard.db")
-    con = sqlite3.connect(fullname)
-    cur = con.cursor()
-    old_time = cur.execute(f'''SELECT Time from Players
-                    WHERE Name = "{TEXT}" AND Difficulty = {SETTINGS['difficulty']}''').fetchone()
-    if old_time:
-        if old_time[0] > TIME:
-            cur.execute(f"""UPDATE Players 
-                                    SET Time = {TEXT.time}
-                                    WHERE Name = '{TEXT}'""").fetchall()
-    else:
-        cur.execute(f"""INSERT INTO Players(Name, Difficulty, Time)
-                        VALUES('{TEXT}', {SETTINGS['difficulty']}, {TIME})""").fetchall()
-    con.commit()
+    if SETTINGS['timer']:
+        fullname = os.path.join('data', "Leaderboard.db")
+        con = sqlite3.connect(fullname)
+        cur = con.cursor()
+        old_time = cur.execute(f'''SELECT Time from Players
+                        WHERE Name = "{TEXT}" AND Difficulty = {SETTINGS['difficulty']}''').fetchone()
+        if old_time:
+            if old_time[0] > TIME:
+                cur.execute(f"""UPDATE Players 
+                                        SET Time = {TEXT.time}
+                                        WHERE Name = '{TEXT}'""").fetchall()
+        else:
+            cur.execute(f"""INSERT INTO Players(Name, Difficulty, Time)
+                            VALUES('{TEXT}', {SETTINGS['difficulty']}, {TIME})""").fetchall()
+        con.commit()
     change_current('main menu')
 
 
