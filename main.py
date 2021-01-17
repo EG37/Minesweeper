@@ -683,6 +683,7 @@ class Board:
 
 # Функция для завершения ввода текста после победы
 def end_editing():
+    global TEXT
     pygame.key.stop_text_input()
     if SETTINGS['timer']:
         fullname = os.path.join('data', "Leaderboard.db")
@@ -693,12 +694,13 @@ def end_editing():
         if old_time:
             if old_time[0] > TIME:
                 cur.execute(f"""UPDATE Players 
-                                        SET Time = {TEXT.time}
+                                        SET Time = {TIME}
                                         WHERE Name = '{TEXT}'""").fetchall()
         else:
             cur.execute(f"""INSERT INTO Players(Name, Difficulty, Time)
                             VALUES('{TEXT}', {SETTINGS['difficulty']}, {TIME})""").fetchall()
         con.commit()
+    TEXT = ''
     change_current('main menu')
 
 
@@ -784,6 +786,10 @@ if __name__ == '__main__':
                     TEXT_POS += 1
 
                 elif event.key in [pygame.K_RETURN, pygame.K_KP_ENTER] and len(event.unicode) == 0:
+                    EDITING = False
+                    TEXT_POS = 0
+                    EDITING_TEXT = ""
+                    EDITING_POS = 0
                     end_editing()
             elif event.type == pygame.TEXTEDITING:
                 EDITING = True
