@@ -5,7 +5,7 @@ import sys
 from random import sample, choice
 import sqlite3
 
-# Глобальнаые переменные с размером экраан
+# Глобальные переменные с размером экрана
 SIZE = WIDTH, HEIGHT = GetSystemMetrics(0), GetSystemMetrics(1)
 # Инициализация пайгейма, миксера и экрана, также шрифт
 pygame.init()
@@ -191,10 +191,11 @@ class AnimatedSprite(pygame.sprite.Sprite):
 
 # Класс ярлыка/лейбла
 class Label:
-    def __init__(self, x, y, width, height, text='', image='', border_width=0):
+    def __init__(self, x, y, width, height, text='', image='', border_width=0, position='center'):
         self.rect = pygame.rect.Rect(x, y, width, height)
         self.text = text
         self.border_width = border_width
+        self.position = position
         if image:
             self.image = pygame.transform.scale(load_image(image), (width, height))
         else:
@@ -207,6 +208,14 @@ class Label:
             text = FONT.render(self.text, True, (0, 0, 0))
             text_x = self.rect.x + self.rect.width // 2 - text.get_width() // 2
             text_y = self.rect.y + self.rect.height // 2 - text.get_height() // 2
+            if 'left' in self.position:
+                text_x = self.rect.x + 0.04 * self.rect.width
+            if 'right' in self.position:
+                text_x = self.rect.x + 0.96 * self.rect.width - text.get_width()
+            if 'bottom' in self.position:
+                text_y = self.rect.y + self.rect.height * 0.96 - text.get_height()
+            if 'top' in self.position:
+                text_y = self.rect.y + self.rect.height * 0.04
             screen.blit(text, (text_x, text_y))
         if self.border_width:
             pygame.draw.rect(screen, (0, 0, 0), self.rect, width=self.border_width)
@@ -755,7 +764,13 @@ hard_btn = Button(630, HEIGHT - 150, 300, 100, text='Профессионал', 
 top_lbl = Label(0, 10, WIDTH, 50, text='Топ игроков:')
 leaderboard_menu = Menu('Таблица лидеров', easy_btn, med_btn, hard_btn, top_lbl)
 
-# Глобальная переменнвя текущей сцены
+# Создание и разметка тестового окна
+test_label = Label(10, 10, 500, 500, text='справа снизу', border_width=2, position='bottom right')
+test_label1 = Label(10, 10, 500, 500, text='слева сверху', border_width=2, position='top left')
+test_label2 = Label(10, 10, 500, 500, text='по центру', border_width=2)
+test_menu = Menu('Тестовое меню', test_label, test_label1, test_label2)
+
+# Глобальная переменная текущей сцены
 CURRENT = main_menu
 
 
