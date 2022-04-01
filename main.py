@@ -11,7 +11,7 @@ SIZE = WIDTH, HEIGHT = GetSystemMetrics(0), GetSystemMetrics(1)
 pygame.init()
 pygame.mixer.init()
 screen = pygame.display.set_mode(SIZE)
-FONT = pygame.font.Font('pixel_font.otf', 40)
+FONT = pygame.font.Font('pixel_font.otf', int(HEIGHT / 27))
 # Глобальная переменная настроек и переменные для частиц
 SETTINGS = {
     'difficulty': 0,
@@ -226,6 +226,9 @@ class Label:
     def set_text(self, text):
         self.text = text
 
+    def set_image(self, image):
+        self.image = image
+
 
 # Класс кнопки
 class Button:
@@ -285,6 +288,9 @@ class Button:
     def set_text(self, text):
         self.text = text
 
+    def set_image(self, image):
+        self.image = image
+
 
 # Класс поля для ввода
 class InputField(Button):
@@ -323,24 +329,25 @@ class Checkbox(Button):
         }
         if text:
             text = FONT.render(self.text, True, (0, 0, 0))
-            self.rect.width = text.get_width() + 75
-            self.rect.height = 70
+            self.rect.width = text.get_width() + int(WIDTH / 27)
+            self.rect.height = int(HEIGHT / 17)
 
     def draw(self):
-        pygame.draw.rect(screen, self.colors[self.state][1], (self.rect.x, self.rect.y + 25, 50, 50),
-                         border_radius=3)
-        pygame.draw.rect(screen, self.colors[self.state][0], (self.rect.x, self.rect.y + 25, 50, 50),
-                         width=3, border_radius=3)
+        pygame.draw.rect(screen, self.colors[self.state][1], (self.rect.x, self.rect.y, self.rect.height,
+                                                              self.rect.height), border_radius=3)
+        pygame.draw.rect(screen, self.colors[self.state][0], (self.rect.x, self.rect.y, self.rect.height,
+                                                              self.rect.height), width=3, border_radius=3)
         if self.checked:
-            pygame.draw.line(screen, self.colors[self.state][0], (self.rect.x + 7, self.rect.y + 50),
-                             (self.rect.x + 23, self.rect.y + 66), width=4)
-            pygame.draw.line(screen, self.colors[self.state][0], (self.rect.x + 23, self.rect.y + 66),
-                             (self.rect.x + 40, self.rect.y + 30), width=4)
+            pygame.draw.line(screen, self.colors[self.state][0], (self.rect.x + 3, self.rect.y + 0.5 * self.rect.height),
+                             (self.rect.x + 0.5 * self.rect.height, self.rect.y + self.rect.height - 5), width=4)
+            pygame.draw.line(screen, self.colors[self.state][0], (self.rect.x + 0.5 * self.rect.height,
+                                                                  self.rect.y + self.rect.height - 5),
+                             (self.rect.x + 0.9 * self.rect.height, self.rect.y + 0.2 * self.rect.height), width=4)
 
         if self.text:
             text = FONT.render(self.text, True, (0, 0, 0))
-            text_x = self.rect.x + 75
-            text_y = self.rect.y + 10 + text.get_height() // 2
+            text_x = self.rect.x + 1.2 * self.rect.height
+            text_y = self.rect.y + 0.1 * self.rect.height
             screen.blit(text, (text_x, text_y))
 
     def get_mouse_up(self, pos):
@@ -800,7 +807,7 @@ if __name__ == '__main__':
                 elif event.key == pygame.K_RIGHT and TEXT_POS != len(TEXT):
                     TEXT_POS += 1
 
-                elif event.key in [pygame.K_RETURN, pygame.K_KP_ENTER] and len(event.unicode) == 0:
+                elif event.key in [pygame.K_RETURN, pygame.K_KP_ENTER]:
                     EDITING = False
                     TEXT_POS = 0
                     EDITING_TEXT = ""
