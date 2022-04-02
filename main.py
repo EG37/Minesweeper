@@ -19,7 +19,8 @@ SETTINGS = {
     'timer': True,
     'general sound': True,
     'bomb sound': True,
-    'victory sound': True
+    'victory sound': True,
+    'background': True
 }
 GRAVITY = 0.1
 particles = pygame.sprite.Group()
@@ -59,6 +60,13 @@ def load_sound(name):
     return sound
 
 
+# Функция для смены изображения на заднем плане
+def set_current_background(n=None):
+    if not n:
+        n = choice([1, 2, 3, 4, 5, 6])
+    return pygame.transform.scale(load_image('bg' + str(n) + '.png'), (WIDTH, HEIGHT))
+
+
 # Функцция для смены окна
 def change_current(state):
     global CURRENT, TIME
@@ -74,6 +82,7 @@ def change_current(state):
         CURRENT = help_menu
     if state == 'leaderboard':
         CURRENT = leaderboard_menu
+    CURRENT.set_image(set_current_background())
 
 
 # Функция для смены изображений в окне помощи
@@ -90,18 +99,20 @@ def change_help(action):
 def change_settings(parameter):
     if parameter == 'Лёгкое начало':
         SETTINGS['easy start'] = not SETTINGS['easy start']
-    if parameter == 'Таймер':
+    elif parameter == 'Таймер':
         SETTINGS['timer'] = not SETTINGS['timer']
-    if parameter == 'Общий звук':
+    elif parameter == 'Общий звук':
         SETTINGS['general sound'] = not SETTINGS['general sound']
         SETTINGS['bomb sound'] = SETTINGS['general sound']
         bomb_sound_cbox.checked = SETTINGS['general sound']
         SETTINGS['victory sound'] = SETTINGS['general sound']
         victory_sound_cbox.checked = SETTINGS['general sound']
-    if parameter == 'Звук победы':
+    elif parameter == 'Звук победы':
         SETTINGS['victory sound'] = not SETTINGS['victory sound']
-    if parameter == 'Звук поражения':
+    elif parameter == 'Звук поражения':
         SETTINGS['bomb sound'] = not SETTINGS['bomb sound']
+    elif parameter == 'Изображение':
+        SETTINGS['background'] = not SETTINGS['background']
 
 
 # Функция для заполнения таблицы лидеров
@@ -359,15 +370,31 @@ class Checkbox(Button):
 
 # Класс меню
 class Menu:
-    def __init__(self, title, *widgets):
+    def __init__(self, title, *widgets, image=None, image_mode=None):
         self.widgets = list(widgets)
         self.title = title
         self.active = False
+        self.image_mode = image_mode
+        if image:
+            self.image = pygame.transform.scale(load_image(image), (WIDTH, HEIGHT))
+        else:
+            self.image = None
 
     def run(self):
         pygame.display.set_caption(self.title)
         self.active = True
-        screen.fill((240, 240, 240))
+        if self.image and SETTINGS['background']:
+            screen.blit(self.image, (0, 0))
+            image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            if self.image_mode == 'transparent':
+                pygame.draw.rect(image, (240, 240, 240, 125), image.get_rect())
+            elif self.image_mode == 'opaque':
+                pygame.draw.rect(image, (240, 240, 240, 255), image.get_rect())
+            elif self.image_mode == 'dark':
+                pygame.draw.rect(image, (50, 50, 50, 195), image.get_rect())
+            screen.blit(image, (0, 0))
+        else:
+            screen.fill((240, 240, 240))
         for widget in self.widgets:
             widget.draw()
 
@@ -383,11 +410,15 @@ class Menu:
     def add_widget(self, widget):
         self.widgets.append(widget)
 
+    def set_image(self, image):
+        self.image = image
+
 
 # Класс игрового поля
 class Board:
-    def __init__(self):
+    def __init__(self, image=None):
         self.active = False
+        self.image = image
         # Установка размеров поля и клеток
         if SETTINGS['difficulty'] == 0:
             self.field_size = (8, 8)
@@ -450,6 +481,9 @@ class Board:
         pygame.display.set_caption('Сапёр')
         self.active = True
         screen.fill((240, 240, 240))
+        if self.image and SETTINGS['background']:
+            screen.blit(self.image, (0, 0))
+            pygame.draw.rect(screen, (240, 240, 240), ((WIDTH - HEIGHT) // 2, 0, HEIGHT, HEIGHT))
         if SETTINGS['timer'] and self.start_time:
             if (pygame.time.get_ticks() - self.start_time) >= 1000:
                 if not self.paused:
@@ -695,6 +729,9 @@ class Board:
         screen.blit(text, (text_x, text_y))
         self.main_menu_btn.draw()
         self.continue_btn.draw()
+
+    def set_image(self, image):
+        self.image = image
 
 
 # Функция для завершения ввода текста после победы
