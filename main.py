@@ -92,7 +92,7 @@ def change_help(action):
     if help_image.n != 5 and action == '+':
         help_image.n += 1
     name = 'help_' + str(help_image.n) + '.png'
-    help_image.image = load_image(name)
+    help_image.set_image(pygame.transform.scale(load_image(name), (help_width, help_side)))
 
 
 # Функция для изменения настроек
@@ -428,27 +428,29 @@ class Board:
             self.set_cells_size()
 
         # Виджеты поля
-        self.restart_button = Button((WIDTH - self.cell_side) // 2, 5, self.cell_side, self.cell_side,
+        self.restart_button = Button((WIDTH - self.cell_side) // 2, gap * 1.3, self.cell_side, self.cell_side,
                                      on_click=lambda x: change_current('game'), image='smile.png')
-        self.flags_label = Label((WIDTH - self.cell_side * self.field_size[1]) // 2, 5, self.cell_side * 1.5,
+        self.flags_label = Label((WIDTH - self.cell_side * self.field_size[1]) // 2, gap * 1.3, self.cell_side * 1.5,
                                  self.cell_side, text=str(self.flags), border_width=3)
-        self.time_label = Label((WIDTH + self.cell_side * (self.field_size[1] - 3)) // 2, 5, self.cell_side * 1.5,
-                                self.cell_side, text='0', border_width=3)
-        self.help_button = Button((WIDTH - self.cell_side * (self.field_size[1] - 4)) // 2, 5, self.cell_side,
+        self.time_label = Label((WIDTH + self.cell_side * (self.field_size[1] - 3)) // 2, gap * 1.3,
+                                self.cell_side * 1.5, self.cell_side, text='0', border_width=3)
+        self.help_button = Button((WIDTH - self.cell_side * (self.field_size[1] - 4)) // 2, gap * 1.3, self.cell_side,
                                   self.cell_side, text='?', on_click=lambda x: change_current('help'))
-        self.pause_button = Button((WIDTH + self.cell_side * (self.field_size[1] - 6)) // 2, 5, self.cell_side,
+        self.pause_button = Button((WIDTH + self.cell_side * (self.field_size[1] - 6)) // 2, gap * 1.3, self.cell_side,
                                    self.cell_side, text='|  |', on_click=lambda x: self.pause())
-        self.main_menu_btn = Button(WIDTH // 2 - 200, HEIGHT // 4 * 3, 400, 100, text='Выйти в главное меню',
-                                    on_click=lambda x: change_current('main menu'))
-        self.continue_btn = Button(WIDTH // 2 - 200, HEIGHT // 4 * 3 - 110, 400, 100, text='Продолжить',
-                                   on_click=lambda x: self.pause())
-        self.input_field = InputField(WIDTH // 2 - 200, HEIGHT // 4 * 3 + 50, 400, 100)
+        self.main_menu_btn = Button(WIDTH // 2 - gap * 40, HEIGHT // 4 * 3, gap * 80, gap * 20,
+                                    text='Выйти в главное меню', on_click=lambda x: change_current('main menu'))
+        self.continue_btn = Button(WIDTH // 2 - gap * 40, HEIGHT // 4 * 3 - gap * 22, gap * 80, gap * 20,
+                                   text='Продолжить', on_click=lambda x: self.pause())
+        self.input_field = InputField(WIDTH // 2 - gap * 40, HEIGHT // 4 * 3 + gap * 10, gap * 80, gap * 20)
+        self.help_pause_btn = Button(WIDTH // 2 - gap * 40, HEIGHT // 4 * 3 - gap * 44, gap * 80, gap * 20,
+                                     text='Как играть ?', on_click=lambda x: change_current('help'))
 
         self.widgets = [self.restart_button, self.flags_label, self.time_label, self.help_button, self.pause_button]
 
         # Переменные для работы поля
         self.left = (WIDTH - self.cell_side * self.field_size[1]) // 2
-        self.top = self.cell_side + 20
+        self.top = self.cell_side + gap * 4
         self.tile_img = pygame.transform.scale(load_image('tile.png'), (self.cell_side - 1, self.cell_side - 1))
         self.flag_img = pygame.transform.scale(load_image('flag1.png'), (self.cell_side - 1, self.cell_side - 1))
         self.bomb_img = pygame.transform.scale(load_image('bomb.png'), (self.cell_side - 1, self.cell_side - 1))
@@ -536,6 +538,7 @@ class Board:
             elif self.paused:
                 self.main_menu_btn.get_event(type, pos, button)
                 self.continue_btn.get_event(type, pos, button)
+                self.help_pause_btn.get_event(type, pos, button)
 
     def stop(self):
         self.active = False
@@ -669,8 +672,10 @@ class Board:
         self.start_time = None
         self.lost = True
         # Анимация взрыва
-        self.explosion = AnimatedSprite(load_image('explosion_sheet6x2.png', -1), 6, 2, WIDTH // 2 - 150,
-                                        HEIGHT // 2 - 156, 8)
+        self.explosion = AnimatedSprite(load_image('explosion_sheet6x2.png', -1), 6, 2, WIDTH // 2 - gap * 24,
+                                        HEIGHT // 2 - gap * 24, 18)
+        self.explosion.rect.x = (WIDTH - self.explosion.rect.width) // 2
+        self.explosion.rect.y = (HEIGHT - self.explosion.rect.height) // 2
 
     # Функция выигрыша
     def win(self):
@@ -689,8 +694,8 @@ class Board:
     def show_lose_scene(self):
         image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         pygame.draw.rect(image, (240, 240, 240, 125), image.get_rect())
-        screen.blit(image, (0, self.cell_side + 7))
-        text = pygame.font.Font('pixel_font.otf', 70).render('Вы проиграли!', True, (0, 0, 0))
+        screen.blit(image, (0, self.cell_side + gap * 1.4))
+        text = FONT.render('Вы проиграли!', True, (0, 0, 0))
         text_x = WIDTH // 2 - text.get_width() // 2
         text_y = HEIGHT // 4 - text.get_height() // 2
         screen.blit(text, (text_x, text_y))
@@ -703,18 +708,22 @@ class Board:
     # Отрисовка сцены выигрыша
     def show_win_scene(self):
         image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        pygame.draw.rect(image, (240, 240, 240, 125), image.get_rect())
-        screen.blit(image, (0, self.cell_side + 7))
-        text = pygame.font.Font('pixel_font.otf', 70).render('Вы выиграли!', True, (0, 0, 0))
+        pygame.draw.rect(image, (gap * 48, gap * 48, gap * 48, gap * 25), image.get_rect())
+        screen.blit(image, (0, self.cell_side + gap * 1.4))
+        text = FONT.render('Вы выиграли!', True, (0, 0, 0))
         text_x = WIDTH // 2 - text.get_width() // 2
         text_y = HEIGHT // 4 - text.get_height() // 2
         screen.blit(text, (text_x, text_y))
         cup = load_image('cup.png', -1)
-        screen.blit(cup, (WIDTH // 2 - cup.get_width() // 2, HEIGHT // 2 - cup.get_height() // 2))
+        cup1 = Label(0, 0, cup.get_width() * (WIDTH / 1920), cup.get_height() * (HEIGHT / 1080), image='cup.png')
+        cup1.rect.x = (WIDTH - cup1.rect.width) // 2
+        cup1.rect.y = (HEIGHT - cup1.rect.height) // 2
+        cup1.image = pygame.transform.scale(cup, (cup1.rect.width, cup1.rect.height))
+        cup1.draw()
         particles.update()
         particles.draw(screen)
         self.input_field.draw()
-        Label(WIDTH // 2 - 200, HEIGHT // 4 * 3 - 50, 400, 100, text='Введите ваше имя:').draw()
+        Label(WIDTH // 2 - gap * 40, HEIGHT // 4 * 3 - gap * 10, gap * 80, gap * 20, text='Введите ваше имя:').draw()
 
     # Поставить/снять тайер с паузы
     def pause(self):
@@ -722,11 +731,16 @@ class Board:
 
     # Отрисовка сцены паузы
     def show_pause_scene(self):
-        pygame.draw.rect(screen, (240, 240, 240), (0, 0, WIDTH, HEIGHT))
-        text = pygame.font.Font('pixel_font.otf', 70).render('Пауза', True, (0, 0, 0))
+        image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        pygame.draw.rect(image, (240, 240, 240, 125), image.get_rect())
+        clock = pygame.transform.scale(load_image('timer.png'), (400 * (WIDTH / 1920), 300 * (HEIGHT / 1080)))
+        screen.blit(image, (0, 0))
+        screen.blit(clock, ((WIDTH - clock.get_width()) * 0.5 - gap, (HEIGHT - clock.get_height()) * 0.4))
+        text = FONT.render('Пауза', True, (0, 0, 0))
         text_x = WIDTH // 2 - text.get_width() // 2
         text_y = HEIGHT // 4 - text.get_height() // 2
         screen.blit(text, (text_x, text_y))
+        self.help_pause_btn.draw()
         self.main_menu_btn.draw()
         self.continue_btn.draw()
 
@@ -760,46 +774,63 @@ def end_editing():
 # Создание и разметка главного меню
 btn_w = WIDTH // 3
 btn_h = HEIGHT // 12
-title_label = Label(WIDTH // 2 - 200, btn_h, 400, 200, image='title.png')
-difficulty_button = Button(btn_w, (btn_h + 5) * 4, btn_w, btn_h, text='Новичок: 8 x 8',
+gap = HEIGHT // 216
+title_label = Label(WIDTH // 2 - btn_w * 0.6, btn_h * 0.3, 1.2 * btn_w, 3.5 * btn_h, image='title.png')
+difficulty_button = Button(btn_w, (btn_h + gap) * 4, btn_w, btn_h, text='Новичок: 8 x 8',
                            on_click=lambda x: change_difficulty(difficulty_button))
-start_button = Button(btn_w, (btn_h + 5) * 5, btn_w, btn_h, text='Начать', on_click=lambda x: change_current('game'))
-settings_button = Button(btn_w, (btn_h + 5) * 6, btn_w, btn_h, text='Настройки',
+start_button = Button(btn_w, (btn_h + gap) * 5, btn_w, btn_h, text='Начать', on_click=lambda x: change_current('game'))
+settings_button = Button(btn_w, (btn_h + gap) * 6, btn_w, btn_h, text='Настройки',
                          on_click=lambda x: change_current('settings'))
-leaderboard_button = Button(btn_w, (btn_h + 5) * 7, btn_w, btn_h, text='Таблица лидеров',
+leaderboard_button = Button(btn_w, (btn_h + gap) * 7, btn_w, btn_h, text='Таблица лидеров',
                             on_click=lambda x: change_current('leaderboard'))
-exit_button = Button(btn_w, (btn_h + 5) * 8, btn_w, btn_h, text='Выйти', on_click=lambda x: sys.exit())
+exit_button = Button(btn_w, (btn_h + gap) * 8, btn_w, btn_h, text='Выйти', on_click=lambda x: sys.exit())
 main_menu = Menu('Сапёр', difficulty_button, start_button, settings_button, leaderboard_button, exit_button,
                  title_label)
 
 # Создание и разметка окна настроек
-settings_lbl = Label(10, 20, 200, 50, text='Настройки:')
-easy_start_cbox = Checkbox(20, 60, WIDTH, 60, text='Лёгкое начало', on_click=lambda x: change_settings('Лёгкое начало'))
+settings_lbl = Label(gap * 4, gap * 4, gap * 40, gap * 10, text='Настройки:', position='left')
+easy_start_cbox = Checkbox(gap * 5, gap * 16, WIDTH, gap * 12, text='Лёгкое начало',
+                           on_click=lambda x: change_settings('Лёгкое начало'))
 easy_start_cbox.checked = SETTINGS['easy start']
-easy_start_lbl = Label(345, 150, 200, 50, text='Первое открытое поле гарантированно будет пустым')
-timer_cbox = Checkbox(20, 200, WIDTH, 60, text='Таймер', on_click=lambda x: change_settings('Таймер'))
+easy_start_lbl = Label(gap * 19, gap * 31, gap * 40, gap * 10, text='Первое открытое поле гарантированно будет пустым',
+                       position='left')
+timer_cbox = Checkbox(gap * 5, gap * 46, WIDTH, gap * 12, text='Таймер', on_click=lambda x: change_settings('Таймер'))
 timer_cbox.checked = SETTINGS['timer']
-timer_lbl = Label(730, 290, 100, 50, text='Таймер фиксирует время, затраченное на игру, '
-                                          'позволяя занести результат в таблицу лидеров')
-general_sound_cbox = Checkbox(20, 340, WIDTH, 60, text='Общий звук', on_click=lambda x: change_settings('Общий звук'))
+timer_lbl = Label(gap * 19, gap * 60, gap * 20, gap * 10, text='Таймер фиксирует время, затраченное на игру, '
+                                                               'позволяя занести результат в таблицу лидеров',
+                  position='left')
+general_sound_cbox = Checkbox(gap * 5, gap * 75, WIDTH, gap * 12, text='Общий звук',
+                              on_click=lambda x: change_settings('Общий звук'))
 general_sound_cbox.checked = SETTINGS['general sound']
-victory_sound_cbox = Checkbox(20, 410, WIDTH, 60, text='Звук победы', on_click=lambda x: change_settings('Звук победы'))
+victory_sound_cbox = Checkbox(gap * 19, gap * 90, WIDTH, gap * 12, text='Звук победы',
+                              on_click=lambda x: change_settings('Звук победы'))
 victory_sound_cbox.checked = SETTINGS['victory sound']
-bomb_sound_cbox = Checkbox(20, 480, WIDTH, 60, text='Звук поражения',
+bomb_sound_cbox = Checkbox(gap * 19, gap * 110, WIDTH, gap * 12, text='Звук поражения',
                            on_click=lambda x: change_settings('Звук поражния'))
-main_menu_btn = Button(10, HEIGHT - 150, 300, 100, text='Выйти в меню', on_click=lambda x: change_current('main menu'))
+image_cbox = Checkbox(gap * 5, gap * 130, WIDTH, gap * 12, text='Фоновое изображение',
+                      on_click=lambda x: change_settings('Изображение'))
+image_cbox.checked = SETTINGS['background']
+main_menu_btn = Button(gap * 4, HEIGHT - gap * 24, gap * 60, gap * 20, text='Выйти в меню',
+                       on_click=lambda x: change_current('main menu'))
 bomb_sound_cbox.checked = SETTINGS['bomb sound']
 settings_menu = Menu('Настройки', easy_start_cbox, settings_lbl, easy_start_lbl, timer_cbox, timer_lbl,
-                     general_sound_cbox, victory_sound_cbox, bomb_sound_cbox, main_menu_btn)
+                     general_sound_cbox, victory_sound_cbox, bomb_sound_cbox, main_menu_btn, image_cbox,
+                     image_mode='transparent')
 
 # Создание и разметка окна "Как играть ?"
-help_image = Label(WIDTH / 558, 10, 1116, 862, image='help_1.png')
+sample_image = load_image('help_1.png')
+help_side = sample_image.get_height() * (HEIGHT / 1080) * 0.65
+help_width = sample_image.get_width() * (WIDTH / 1920) * 0.65
+help_image = Label((WIDTH - help_width) // 2, gap * 5, help_width, help_side)
+help_image.set_image(pygame.transform.scale(sample_image, (help_width, help_side)))
 help_image.n = 1
-previous_btn = Button(10, HEIGHT - 150, 300, 100, text='Назад', on_click=lambda x: change_help('-'))
-next_btn = Button(320, HEIGHT - 150, 300, 100, text='Далее', on_click=lambda x: change_help('+'))
-help_menu = Menu('Как играть', previous_btn, next_btn,
-                 Button(630, HEIGHT - 150, 300, 100, text='Выйти в меню',
-                        on_click=lambda x: change_current('main menu')), help_image)
+previous_btn = Button(WIDTH // 2 - gap * 77, HEIGHT - gap * 25, gap * 60, gap * 20, text='< Назад',
+                      on_click=lambda x: change_help('-'))
+next_btn = Button(WIDTH // 2 + gap * 17, HEIGHT - gap * 25, gap * 60, gap * 20, text='Далее >',
+                  on_click=lambda x: change_help('+'))
+game_btn = Button((WIDTH - gap * 30) // 2, HEIGHT - gap * 25, gap * 30, gap * 20, text='Назад',
+                  on_click=lambda x: change_current('game'))
+help_menu = Menu('Как играть', previous_btn, next_btn, game_btn, help_image, image_mode='opaque')
 
 # Создание и разметка окна с таблицей лидеров
 easy_btn = Button(10, HEIGHT - 150, 300, 100, text='Новичок', on_click=lambda x: fill_leaderboard(0))
@@ -808,15 +839,9 @@ hard_btn = Button(630, HEIGHT - 150, 300, 100, text='Профессионал', 
 top_lbl = Label(0, 10, WIDTH, 50, text='Топ игроков:')
 leaderboard_menu = Menu('Таблица лидеров', easy_btn, med_btn, hard_btn, top_lbl)
 
-# Создание и разметка тестового окна
-test_label = Label(10, 10, 500, 500, text='справа снизу', border_width=2, position='bottom right')
-test_label1 = Label(10, 10, 500, 500, text='слева сверху', border_width=2, position='top left')
-test_label2 = Label(10, 10, 500, 500, text='по центру', border_width=2)
-test_menu = Menu('Тестовое меню', test_label, test_label1, test_label2)
-
 # Глобальная переменная текущей сцены
 CURRENT = main_menu
-
+CURRENT.set_image(set_current_background())
 
 if __name__ == '__main__':
     running = True
@@ -843,7 +868,6 @@ if __name__ == '__main__':
                     TEXT_POS -= 1
                 elif event.key == pygame.K_RIGHT and TEXT_POS != len(TEXT):
                     TEXT_POS += 1
-
                 elif event.key in [pygame.K_RETURN, pygame.K_KP_ENTER]:
                     EDITING = False
                     TEXT_POS = 0
