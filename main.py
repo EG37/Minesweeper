@@ -124,16 +124,21 @@ def fill_leaderboard(difficulty):
     data = cur.execute(f'''SELECT * FROM Players 
                                    WHERE Difficulty = {difficulty}''').fetchall()
     data.sort(key=lambda x: x[3])
-    if len(leaderboard_menu.widgets) != 4:
+    if len(leaderboard_menu.widgets) != 5:
         text = leaderboard_menu.widgets[-1].text
         if text == 'Здесь пока никого нет' or data == [] or text.split()[1] != data[-1][1]:
-            leaderboard_menu.widgets = [easy_btn, med_btn, hard_btn, top_lbl]
+            leaderboard_menu.widgets = [easy_btn, med_btn, hard_btn, top_lbl, leaderboard_main_menu_btn]
     if data:
-        for i in range(min(10, len(data))):
-            player = str(i + 1) + ' ' + data[i][1] + ' ' + str(data[i][3]) + 'сек'
-            leaderboard_menu.add_widget(Label(0, (i + 1) * 70, WIDTH, 50, text=player))
+        for i in range(min(8, len(data))):
+            player = str(i + 1) + '. ' + data[i][1] + ' ' + str(data[i][3]) + 'сек'
+            if i == 0:
+                plate = 'gold.png'
+            else:
+                plate = 'metal.png'
+            leaderboard_menu.add_widget(Label(WIDTH * 0.375, (i + 1) * gap * 19, WIDTH // 4, gap * 15, text=player,
+                                              image=plate, border_width=4))
     else:
-        leaderboard_menu.add_widget(Label(0, 70, WIDTH, 50, text='Здесь пока никого нет'))
+        leaderboard_menu.add_widget(Label(0, gap * 19, WIDTH, gap * 15, text='Здесь пока никого нет'))
 
 
 # Функция для смены уровня сложности
@@ -833,11 +838,17 @@ game_btn = Button((WIDTH - gap * 30) // 2, HEIGHT - gap * 25, gap * 30, gap * 20
 help_menu = Menu('Как играть', previous_btn, next_btn, game_btn, help_image, image_mode='opaque')
 
 # Создание и разметка окна с таблицей лидеров
-easy_btn = Button(10, HEIGHT - 150, 300, 100, text='Новичок', on_click=lambda x: fill_leaderboard(0))
-med_btn = Button(320, HEIGHT - 150, 300, 100, text='Любитель', on_click=lambda x: fill_leaderboard(1))
-hard_btn = Button(630, HEIGHT - 150, 300, 100, text='Профессионал', on_click=lambda x: fill_leaderboard(2))
-top_lbl = Label(0, 10, WIDTH, 50, text='Топ игроков:')
-leaderboard_menu = Menu('Таблица лидеров', easy_btn, med_btn, hard_btn, top_lbl)
+easy_btn = Button(gap * 5, HEIGHT - gap * 25, gap * 45, gap * 20, text='Новичок',
+                  on_click=lambda x: fill_leaderboard(0))
+med_btn = Button(gap * 55, HEIGHT - gap * 25, gap * 45, gap * 20, text='Любитель',
+                 on_click=lambda x: fill_leaderboard(1))
+hard_btn = Button(gap * 105, HEIGHT - gap * 25, gap * 55, gap * 20, text='Профессионал',
+                  on_click=lambda x: fill_leaderboard(2))
+leaderboard_main_menu_btn = Button(WIDTH - gap * 60, HEIGHT - gap * 25, gap * 55, gap * 20, text='Главное меню',
+                                   on_click=lambda x: change_current('main menu'))
+top_lbl = Label(0, gap * 3, WIDTH, 50, text='Топ игроков:')
+leaderboard_menu = Menu('Таблица лидеров', easy_btn, med_btn, hard_btn, top_lbl, leaderboard_main_menu_btn,
+                        image_mode='dark')
 
 # Глобальная переменная текущей сцены
 CURRENT = main_menu
